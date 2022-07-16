@@ -51,6 +51,8 @@ class ViewController: UIViewController {
     lazy var centerView: UIView = self.makeCurvePointView()
     lazy var rightEdgeView: UIView = self.makeCurvePointView()
     
+    var initialPoint: CGPoint = .zero
+    
     private var flag: Bool = true
     
     override func viewDidLoad() {
@@ -65,7 +67,8 @@ class ViewController: UIViewController {
         if (self.flag) {
             self.flag = false
             self.shapeLayer.frame = self.canvasView.bounds
-            self.canvasView.backgroundColor = .clear
+            self.canvasView.backgroundColor = .white
+            self.setupControlPoint()
         }
     }
     
@@ -77,10 +80,21 @@ class ViewController: UIViewController {
     }
     
     func setupControlPoint() {
+        let sizeOfParentView = self.canvasView.bounds
+        
+        self.leftEdgeView.center = .init(x: 0.0, y: sizeOfParentView.midY)
+        self.centerView.center = self.canvasView.center
+        self.centerView.center.y += 30.0
+        self.rightEdgeView.center = .init(x: sizeOfParentView.maxX, y: sizeOfParentView.midY)
+        
         let bezier = UIBezierPath()
-        bezier.move(to: CGPoint.zero)
-        bezier.addLine(to: CGPoint(x: self.canvasView.bounds.width, y: self.canvasView.bounds.height))
+        bezier.move(to: self.leftEdgeView.center)
+        bezier.addQuadCurve(to: self.rightEdgeView.center, controlPoint: self.centerView.center)
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.maxX, y: sizeOfParentView.maxY))
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.minX, y: sizeOfParentView.maxY))
+        bezier.close()
         self.shapeLayer.path = bezier.cgPath
+        
         self.placementScales()
     }
     
@@ -111,12 +125,12 @@ extension ViewController {
         self.view.addSubview(self.canvasView)
         self.canvasView.layer.addSublayer(self.shapeLayer)
         
-        self.canvasView.addSubview(self.beginOfScale)
-        self.canvasView.addSubview(self.endOfScale)
-        
         self.canvasView.addSubview(self.leftEdgeView)
         self.canvasView.addSubview(self.centerView)
         self.canvasView.addSubview(self.rightEdgeView)
+        
+        self.canvasView.addSubview(self.beginOfScale)
+        self.canvasView.addSubview(self.endOfScale)
     }
     
     func configureConstraints() {
@@ -226,8 +240,8 @@ extension ViewController {
         let shape = CAShapeLayer()
         shape.backgroundColor = UIColor.clear.cgColor
         shape.lineWidth = 2.0
-        shape.fillColor = UIColor.clear.cgColor
-        shape.strokeColor = UIColor.white.cgColor
+        shape.fillColor = UIColor.red.cgColor
+        shape.strokeColor = UIColor.green.cgColor
         shape.lineCap = .round
         shape.lineJoin = .round
         return shape
@@ -240,7 +254,7 @@ extension ViewController {
             let temp = UIView()
             temp.frame.size = CGSize(width: 50.0, height: 3.0)
             temp.translatesAutoresizingMaskIntoConstraints = false
-            temp.backgroundColor = UIColor.cyan.withAlphaComponent(0.5)
+            temp.backgroundColor = UIColor.cyan
             temp.layer.cornerRadius = 2.0
             tempViews.append(temp)
             item += 1
@@ -250,8 +264,9 @@ extension ViewController {
     
     func makeCurvePointView() -> UIView {
         let temp = UIView()
-        temp.backgroundColor = .red
+        temp.backgroundColor = .purple
         temp.translatesAutoresizingMaskIntoConstraints = false
+        temp.frame.size = .init(width: 10.0, height: 10.0)
         return temp
     }
 }
