@@ -60,6 +60,22 @@ class ViewController: UIViewController {
         self.setupViews()
         self.configureConstraints()
         self.settingsOfScale()
+        
+        let panGesure = UIPanGestureRecognizer(target: self, action: #selector(self.canvasGesture(sender:)))
+        self.canvasView.addGestureRecognizer(panGesure)
+    }
+    
+    @objc func canvasGesture(sender: UIPanGestureRecognizer) {
+        switch sender.state {
+        case .began:
+            print("began == \(sender.location(in: self.canvasView))")
+        case .changed:
+            print("changed == \(sender.location(in: self.canvasView))")
+        case .ended:
+            print("ended of interaction")
+        default:
+            print("default values")
+        }
     }
     
     override func viewDidLayoutSubviews() {
