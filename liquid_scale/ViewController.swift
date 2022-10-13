@@ -51,8 +51,8 @@ class ViewController: UIViewController {
     lazy var centerView: UIView = self.makeCurvePointView()
     lazy var rightEdgeView: UIView = self.makeCurvePointView()
     
-    var initialPoint: CGPoint = .zero
-    
+    private var displayRefresh: CADisplayLink = CADisplayLink()
+    private var percent: CGFloat = .zero
     private var flag: Bool = true
     
     override func viewDidLoad() {
@@ -63,21 +63,75 @@ class ViewController: UIViewController {
         
         let panGesure = UIPanGestureRecognizer(target: self, action: #selector(self.canvasGesture(sender:)))
         self.canvasView.addGestureRecognizer(panGesure)
+        self.refreshSettings()
+    }
+    
+    func refreshSettings() {
+        self.displayRefresh = CADisplayLink(target: self, selector: #selector(self.refreshDraw))
+        self.displayRefresh.add(to: .main, forMode: .default)
+        self.displayRefresh.isPaused = true
+    }
+    
+   @objc func refreshDraw() {
+       self.redrawBezier()
     }
     
     @objc func canvasGesture(sender: UIPanGestureRecognizer) {
-        switch sender.state {
-        case .began:
-            print("began == \(sender.location(in: self.canvasView))")
-        case .changed:
-            print("changed == \(sender.location(in: self.canvasView))")
-        case .ended:
-            print("ended of interaction")
-        default:
-            print("default values")
+        let translation: CGPoint = sender.translation(in: self.canvasView)
+        let locationPoint: CGPoint = sender.location(in: self.canvasView)
+        if (locationPoint.y >= self.topNavbar.frame.height) && (locationPoint.y <= self.bottomNavBar.frame.minY - self.bottomNavBar.bounds.height) {
+            let axisX = translation.x
+            let allowableArea = self.centerView.frame
+            if (translation.y <= 0) {
+                if (allowableArea.origin.y - abs(translation.y) > 0.0) {
+                    self.centerView.frame.origin.y -= abs(translation.y)
+                }
+            } else {
+                if (allowableArea.origin.y + translation.y < self.canvasView.bounds.height - allowableArea.height) {
+                    self.centerView.frame.origin.y += abs(translation.y)
+                }
+            }
+            if (axisX > 0) {
+                if (allowableArea.origin.x + translation.x < self.canvasView.bounds.width - allowableArea.width) {
+                    self.centerView.frame.origin.x += translation.x
+                }
+            } else {
+                if (allowableArea.origin.x - abs(translation.x) > 0.0) {
+                    self.centerView.frame.origin.x -= abs(translation.x)
+                }
+            }
+            self.percent = self.centerView.getAbsolutePosition().y / (self.canvasView.bounds.height - 10.0)
+        }
+        self.redrawBezier()
+        sender.setTranslation(.zero, in: self.canvasView)
+        
+        if (sender.state == .ended) {
+            self.canvasView.isUserInteractionEnabled = false
+            self.displayRefresh.isPaused = false
+            
+            UIView.animate(withDuration: 0.7, delay: 0.0, usingSpringWithDamping: 0.2, initialSpringVelocity: 0.0) { [weak self] in
+                guard let self = self else { return }
+                self.leftEdgeView.center.y = self.centerView.center.y
+                self.rightEdgeView.center.y = self.centerView.center.y
+            } completion: {[weak self] _ in
+                guard let self = self else { return }
+                self.canvasView.isUserInteractionEnabled = true
+                self.displayRefresh.isPaused = true
+            }
         }
     }
     
+    func redrawBezier() {
+        let sizeOfParentView = self.canvasView.bounds
+        let bezier = UIBezierPath()
+        bezier.move(to: self.leftEdgeView.getAbsolutePosition())
+        bezier.addQuadCurve(to: self.rightEdgeView.getAbsolutePosition(), controlPoint: self.centerView.getAbsolutePosition())
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.maxX, y: sizeOfParentView.maxY))
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.minX, y: sizeOfParentView.maxY))
+        bezier.close()
+        self.shapeLayer.path = bezier.cgPath
+    }
+     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         if (self.flag) {
@@ -99,8 +153,7 @@ class ViewController: UIViewController {
         let sizeOfParentView = self.canvasView.bounds
         
         self.leftEdgeView.center = .init(x: 0.0, y: sizeOfParentView.midY)
-        self.centerView.center = self.canvasView.center
-        self.centerView.center.y += 30.0
+        self.centerView.center = .init(x: 0.0, y: sizeOfParentView.midY)
         self.rightEdgeView.center = .init(x: sizeOfParentView.maxX, y: sizeOfParentView.midY)
         
         let bezier = UIBezierPath()
@@ -110,7 +163,6 @@ class ViewController: UIViewController {
         bezier.addLine(to: CGPoint(x: sizeOfParentView.minX, y: sizeOfParentView.maxY))
         bezier.close()
         self.shapeLayer.path = bezier.cgPath
-        
         self.placementScales()
     }
     
@@ -257,9 +309,10 @@ extension ViewController {
         shape.backgroundColor = UIColor.clear.cgColor
         shape.lineWidth = 2.0
         shape.fillColor = UIColor.red.cgColor
-        shape.strokeColor = UIColor.green.cgColor
+        shape.strokeColor = UIColor.clear.cgColor
         shape.lineCap = .round
         shape.lineJoin = .round
+        shape.actions = ["path":NSNull(),"position":NSNull(), "bounds":NSNull()]
         return shape
     }
     
@@ -282,7 +335,18 @@ extension ViewController {
         let temp = UIView()
         temp.backgroundColor = .purple
         temp.translatesAutoresizingMaskIntoConstraints = false
-        temp.frame.size = .init(width: 10.0, height: 10.0)
+        temp.frame.size = .init(width: 1.0, height: 1.0)
+        temp.layer.actions = ["path":NSNull(),"position":NSNull(), "bounds":NSNull()]
         return temp
+    }
+}
+
+extension UIView {
+    func getAbsolutePosition() -> CGPoint {
+        if let presentation = layer.presentation() {
+            return presentation.position
+        } else {
+            return center
+        }
     }
 }
