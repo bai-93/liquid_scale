@@ -36,7 +36,7 @@ class ViewController: UIViewController {
     lazy var stats: UIButton = self.makeNavBarButton(type: .stats)
     
     lazy var topPoint: UILabel = self.makeLabel(typeLabel: .topPoint)
-    lazy var topNeedPoints: UILabel = self.makeLabel(typeLabel: .topNeedPoint)
+    lazy var tophavePoints: UILabel = self.makeLabel(typeLabel: .topNeedPoint)
     lazy var bottomPoint: UILabel = self.makeLabel(typeLabel: .bottomPoint)
     lazy var bottomHavePoint: UILabel = self.makeLabel(typeLabel: .bottomHavePoint)
     
@@ -72,6 +72,13 @@ class ViewController: UIViewController {
         self.displayRefresh.isPaused = true
     }
     
+    func changePositionOfLabels() {
+        self.topPoint.center.y = self.centerView.frame.origin.y - 10.0
+        self.tophavePoints.center.y = self.topPoint.center.y
+        self.bottomPoint.frame.origin.y = self.centerView.getAbsolutePosition().y + 10.0
+        self.bottomHavePoint.frame.origin.y = self.bottomPoint.frame.origin.y
+    }
+    
    @objc func refreshDraw() {
        self.redrawBezier()
     }
@@ -85,10 +92,16 @@ class ViewController: UIViewController {
             if (translation.y <= 0) {
                 if (allowableArea.origin.y - abs(translation.y) > 0.0) {
                     self.centerView.frame.origin.y -= abs(translation.y)
+                    self.leftEdgeView.frame.origin.y = self.centerView.frame.origin.y * 1.396
+                    self.rightEdgeView.frame.origin.y = self.centerView.frame.origin.y * 1.396
+                    self.changePositionOfLabels()
                 }
             } else {
                 if (allowableArea.origin.y + translation.y < self.canvasView.bounds.height - allowableArea.height) {
                     self.centerView.frame.origin.y += abs(translation.y)
+                    self.leftEdgeView.frame.origin.y = self.centerView.frame.origin.y * 0.76
+                    self.rightEdgeView.frame.origin.y = self.centerView.frame.origin.y * 0.76
+                    self.changePositionOfLabels()
                 }
             }
             if (axisX > 0) {
@@ -101,7 +114,9 @@ class ViewController: UIViewController {
                 }
             }
             self.percent = self.centerView.getAbsolutePosition().y / (self.canvasView.bounds.height - 10.0)
+            print("current percent = \(self.percent)")
         }
+        self.centerView.center.x = locationPoint.x
         self.redrawBezier()
         sender.setTranslation(.zero, in: self.canvasView)
         
@@ -115,6 +130,7 @@ class ViewController: UIViewController {
                 self.rightEdgeView.center.y = self.centerView.center.y
             } completion: {[weak self] _ in
                 guard let self = self else { return }
+                self.centerView.center.x = self.canvasView.center.x
                 self.canvasView.isUserInteractionEnabled = true
                 self.displayRefresh.isPaused = true
             }
@@ -199,6 +215,14 @@ extension ViewController {
         
         self.canvasView.addSubview(self.beginOfScale)
         self.canvasView.addSubview(self.endOfScale)
+        
+        self.canvasView.addSubview(self.topPoint)
+        self.canvasView.addSubview(self.tophavePoints)
+        
+        self.canvasView.addSubview(self.bottomPoint)
+        self.canvasView.addSubview(self.bottomHavePoint)
+        self.topPoint.text = "50 %"
+        self.bottomPoint.text = "40 %"
     }
     
     func configureConstraints() {
@@ -242,7 +266,22 @@ extension ViewController {
             self.endOfScale.trailingAnchor.constraint(equalTo: self.canvasView.trailingAnchor, constant: -20.0),
             self.endOfScale.widthAnchor.constraint(equalTo: self.beginOfScale.widthAnchor),
             self.endOfScale.heightAnchor.constraint(equalToConstant: 3.0),
-            self.endOfScale.bottomAnchor.constraint(equalTo: self.canvasView.bottomAnchor)
+            self.endOfScale.bottomAnchor.constraint(equalTo: self.canvasView.bottomAnchor),
+            
+            self.centerView.centerXAnchor.constraint(equalTo: self.canvasView.centerXAnchor),
+            self.centerView.centerYAnchor.constraint(equalTo: self.canvasView.centerYAnchor),
+            self.centerView.widthAnchor.constraint(equalToConstant: 10.0),
+            self.centerView.heightAnchor.constraint(equalToConstant: 10.0),
+            
+            self.topPoint.bottomAnchor.constraint(equalTo: self.centerView.topAnchor, constant: -10.0),
+            self.topPoint.leadingAnchor.constraint(equalTo: self.canvasView.leadingAnchor, constant: 25.0),
+            self.tophavePoints.leadingAnchor.constraint(equalTo: self.topPoint.trailingAnchor, constant: 10.0),
+            self.tophavePoints.centerYAnchor.constraint(equalTo: self.topPoint.centerYAnchor),
+            
+            self.bottomPoint.leadingAnchor.constraint(equalTo: self.canvasView.leadingAnchor, constant: 25.0),
+            self.bottomPoint.topAnchor.constraint(equalTo: self.centerView.bottomAnchor, constant: 10.0),
+            self.bottomHavePoint.leadingAnchor.constraint(equalTo: self.bottomPoint.trailingAnchor, constant: 10.0),
+            self.bottomHavePoint.centerYAnchor.constraint(equalTo: self.bottomPoint.centerYAnchor)
         ])
     }
 }
@@ -279,7 +318,7 @@ extension ViewController {
         temp.setTitle(titleButton, for: .normal)
         return temp
     }
-    
+    cl
     func makeCanvasView() -> UIView {
         let temp = UIView()
         temp.translatesAutoresizingMaskIntoConstraints = false
@@ -333,9 +372,9 @@ extension ViewController {
     
     func makeCurvePointView() -> UIView {
         let temp = UIView()
-        temp.backgroundColor = .purple
+        temp.backgroundColor = .green
         temp.translatesAutoresizingMaskIntoConstraints = false
-        temp.frame.size = .init(width: 1.0, height: 1.0)
+        temp.frame.size = .init(width: 10.0, height: 10.0)
         temp.layer.actions = ["path":NSNull(),"position":NSNull(), "bounds":NSNull()]
         return temp
     }
