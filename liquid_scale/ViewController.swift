@@ -318,7 +318,7 @@ extension ViewController {
         temp.setTitle(titleButton, for: .normal)
         return temp
     }
-    cl
+    
     func makeCanvasView() -> UIView {
         let temp = UIView()
         temp.translatesAutoresizingMaskIntoConstraints = false
