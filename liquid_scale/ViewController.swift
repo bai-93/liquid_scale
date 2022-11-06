@@ -54,12 +54,16 @@ class ViewController: UIViewController {
     private var displayRefresh: CADisplayLink = CADisplayLink()
     private var percent: CGFloat = .zero
     private var flag: Bool = true
+    lazy var checkCurveView: UIView = self.makeCurvePointView()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         self.setupViews()
         self.configureConstraints()
         self.settingsOfScale()
+        
+        self.checkCurveView.backgroundColor = UIColor.green
+        self.checkCurveView.frame.size = .init(width: 10.0, height: 10.0)
         
         let panGesure = UIPanGestureRecognizer(target: self, action: #selector(self.canvasGesture(sender:)))
         self.canvasView.addGestureRecognizer(panGesure)
@@ -80,7 +84,7 @@ class ViewController: UIViewController {
     }
     
    @objc func refreshDraw() {
-       self.redrawBezier()
+       replacementPath()
     }
     
     @objc func canvasGesture(sender: UIPanGestureRecognizer) {
@@ -92,16 +96,10 @@ class ViewController: UIViewController {
             if (translation.y <= 0) {
                 if (allowableArea.origin.y - abs(translation.y) > 0.0) {
                     self.centerView.frame.origin.y -= abs(translation.y)
-                    self.leftEdgeView.frame.origin.y = self.centerView.frame.origin.y * 1.396
-                    self.rightEdgeView.frame.origin.y = self.centerView.frame.origin.y * 1.396
-                    self.changePositionOfLabels()
                 }
             } else {
                 if (allowableArea.origin.y + translation.y < self.canvasView.bounds.height - allowableArea.height) {
                     self.centerView.frame.origin.y += abs(translation.y)
-                    self.leftEdgeView.frame.origin.y = self.centerView.frame.origin.y * 0.76
-                    self.rightEdgeView.frame.origin.y = self.centerView.frame.origin.y * 0.76
-                    self.changePositionOfLabels()
                 }
             }
             if (axisX > 0) {
@@ -114,9 +112,9 @@ class ViewController: UIViewController {
                 }
             }
             self.percent = self.centerView.getAbsolutePosition().y / (self.canvasView.bounds.height - 10.0)
-            print("current percent = \(self.percent)")
         }
         self.centerView.center.x = locationPoint.x
+        self.checkCurveView.center = self.caculatePoints()
         self.redrawBezier()
         sender.setTranslation(.zero, in: self.canvasView)
         
@@ -124,13 +122,15 @@ class ViewController: UIViewController {
             self.canvasView.isUserInteractionEnabled = false
             self.displayRefresh.isPaused = false
             
-            UIView.animate(withDuration: 0.7, delay: 0.0, usingSpringWithDamping: 0.2, initialSpringVelocity: 0.0) { [weak self] in
+            UIView.animate(withDuration: 0.7, delay: 0.0, usingSpringWithDamping: 0.25, initialSpringVelocity: 0.8) { [weak self] in
                 guard let self = self else { return }
-                self.leftEdgeView.center.y = self.centerView.center.y
-                self.rightEdgeView.center.y = self.centerView.center.y
+                self.leftEdgeView.center.y = self.checkCurveView.center.y
+                self.rightEdgeView.center.y = self.checkCurveView.center.y
+                self.centerView.center = self.checkCurveView.center
             } completion: {[weak self] _ in
                 guard let self = self else { return }
                 self.centerView.center.x = self.canvasView.center.x
+                self.checkCurveView.center = self.centerView.center
                 self.canvasView.isUserInteractionEnabled = true
                 self.displayRefresh.isPaused = true
             }
@@ -142,6 +142,17 @@ class ViewController: UIViewController {
         let bezier = UIBezierPath()
         bezier.move(to: self.leftEdgeView.getAbsolutePosition())
         bezier.addQuadCurve(to: self.rightEdgeView.getAbsolutePosition(), controlPoint: self.centerView.getAbsolutePosition())
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.maxX, y: sizeOfParentView.maxY))
+        bezier.addLine(to: CGPoint(x: sizeOfParentView.minX, y: sizeOfParentView.maxY))
+        bezier.close()
+        self.shapeLayer.path = bezier.cgPath
+    }
+    
+    func replacementPath() {
+        let sizeOfParentView = self.canvasView.bounds
+        let bezier = UIBezierPath()
+        bezier.move(to: self.leftEdgeView.getAbsolutePosition())
+        bezier.addQuadCurve(to: self.rightEdgeView.getAbsolutePosition(), controlPoint: self.checkCurveView.getAbsolutePosition())
         bezier.addLine(to: CGPoint(x: sizeOfParentView.maxX, y: sizeOfParentView.maxY))
         bezier.addLine(to: CGPoint(x: sizeOfParentView.minX, y: sizeOfParentView.maxY))
         bezier.close()
@@ -180,6 +191,8 @@ class ViewController: UIViewController {
         bezier.close()
         self.shapeLayer.path = bezier.cgPath
         self.placementScales()
+        
+        self.checkCurveView.center = self.centerView.center
     }
     
     func placementScales() {
@@ -223,6 +236,8 @@ extension ViewController {
         self.canvasView.addSubview(self.bottomHavePoint)
         self.topPoint.text = "50 %"
         self.bottomPoint.text = "40 %"
+        
+        self.canvasView.addSubview(self.checkCurveView)
     }
     
     func configureConstraints() {
@@ -284,6 +299,12 @@ extension ViewController {
             self.bottomHavePoint.centerYAnchor.constraint(equalTo: self.bottomPoint.centerYAnchor)
         ])
     }
+    
+    func caculatePoints() -> CGPoint {
+        let summPointX = pow(1-0.5, 2.0) * self.leftEdgeView.center.x + 2 * (1-0.5) * 0.5 * self.centerView.center.x + pow(0.5, 2) * self.rightEdgeView.center.x
+        let summPointY = pow(1-0.5, 2.0) * self.leftEdgeView.center.y + 2 * (1-0.5) * 0.5 * self.centerView.center.y + pow(0.5, 2) * self.rightEdgeView.center.y
+        return .init(x: summPointX, y: summPointY)
+    }
 }
 
 extension ViewController {
@@ -323,6 +344,8 @@ extension ViewController {
         let temp = UIView()
         temp.translatesAutoresizingMaskIntoConstraints = false
         temp.backgroundColor = UIColor.red
+        temp.clipsToBounds = true
+        temp.layer.masksToBounds = true
         return temp
     }
     
@@ -372,7 +395,7 @@ extension ViewController {
     
     func makeCurvePointView() -> UIView {
         let temp = UIView()
-        temp.backgroundColor = .green
+        temp.backgroundColor = .black
         temp.translatesAutoresizingMaskIntoConstraints = false
         temp.frame.size = .init(width: 10.0, height: 10.0)
         temp.layer.actions = ["path":NSNull(),"position":NSNull(), "bounds":NSNull()]
