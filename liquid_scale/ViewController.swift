@@ -64,18 +64,29 @@ class ViewController: UIViewController {
         self.configureConstraints()
         self.settingsOfScale()
         
-        self.checkCurveView.backgroundColor = UIColor.green
+        self.checkCurveView.backgroundColor = UIColor.clear
         self.checkCurveView.frame.size = .init(width: 1.0, height: 1.0)
         
         let panGesure = UIPanGestureRecognizer(target: self, action: #selector(self.canvasGesture(sender:)))
         self.canvasView.addGestureRecognizer(panGesure)
         self.refreshSettings()
+        self.setupFontSizeOfPoints()
     }
     
     func refreshSettings() {
         self.displayRefresh = CADisplayLink(target: self, selector: #selector(self.refreshDraw))
         self.displayRefresh.add(to: .main, forMode: .default)
         self.displayRefresh.isPaused = true
+    }
+    
+    func setupFontSizeOfPoints() {
+        self.topPointLabel.font = .systemFont(ofSize: 50.0)
+        self.tophavePointsLabel.font = .boldSystemFont(ofSize: 25.0)
+        self.bottomPointLabel.font = .systemFont(ofSize: 50.0)
+        self.bottomHavePointLabel.font = .boldSystemFont(ofSize: 25.0)
+        
+        self.bottomPointLabel.textColor = .white
+        self.bottomHavePointLabel.textColor = .white
     }
     
     func changePositionOfLabels(translation: CGPoint) {
@@ -93,10 +104,19 @@ class ViewController: UIViewController {
         self.bottomPointLabel.frame.origin.y = self.checkCurveView.getAbsolutePosition().y + 45.0
         self.bottomHavePointLabel.center.y = self.bottomPointLabel.center.y
         
+        let increaseFontSizeTopPointLabel: CGFloat = (CGFloat(self.topPercent) / 100.0) * 50.0
+        let increaseFontSizeBottomPointLabel: CGFloat = (CGFloat(self.bottomPercent) / 100.0) * 50.0
+        let increaseFontSizeTopHavePointTitleLabel: CGFloat = (CGFloat(self.topPercent) / 100.0) * 25.0
+        let increaseFontSizeBottomHavePointTitleLabel: CGFloat = (CGFloat(self.bottomPercent) / 100.0) * 25.0
+        
         UIView.animate(withDuration: 0.3) { [weak self] in
             guard let self = self else { return }
-            self.topPointLabel.text = String(self.topPercent)
-            self.bottomPointLabel.text = String(self.bottomPercent)
+            self.topPointLabel.font = .systemFont(ofSize: increaseFontSizeTopPointLabel)
+            self.tophavePointsLabel.font = .systemFont(ofSize: increaseFontSizeTopHavePointTitleLabel)
+            self.bottomPointLabel.font = .systemFont(ofSize: increaseFontSizeBottomPointLabel)
+            self.bottomHavePointLabel.font = .systemFont(ofSize: increaseFontSizeBottomHavePointTitleLabel)
+            self.topPointLabel.text = String(self.topPercent) + " %"
+            self.bottomPointLabel.text = String(self.bottomPercent) + " %"
         }
     }
     
@@ -123,7 +143,7 @@ class ViewController: UIViewController {
             }
         }
         self.centerView.center.x = locationPoint.x
-        self.checkCurveView.center = self.caculatePoints()
+        self.checkCurveView.center = self.caculateMidPoint()
         changePositionOfLabels(translation: translation)
         self.redrawBezier()
         sender.setTranslation(.zero, in: self.canvasView)
@@ -258,7 +278,7 @@ extension ViewController {
         self.canvasView.addSubview(self.bottomPointLabel)
         self.canvasView.addSubview(self.bottomHavePointLabel)
         self.topPointLabel.text = "50 %"
-        self.bottomPointLabel.text = "40 %"
+        self.bottomPointLabel.text = "50 %"
     }
     
     func configureConstraints() {
@@ -311,21 +331,25 @@ extension ViewController {
             
             self.topPointLabel.bottomAnchor.constraint(equalTo: self.centerView.topAnchor, constant: -40.0),
             self.topPointLabel.centerXAnchor.constraint(equalTo: self.centerView.centerXAnchor, constant: -50.0),
-            self.topPointLabel.widthAnchor.constraint(equalToConstant: 50.0),
-            self.topPointLabel.heightAnchor.constraint(equalToConstant: 50.0),
-            self.tophavePointsLabel.leadingAnchor.constraint(equalTo: self.topPointLabel.trailingAnchor,constant: 0),
+            self.topPointLabel.widthAnchor.constraint(equalToConstant: 80.0),
+            self.topPointLabel.heightAnchor.constraint(equalToConstant: 70.0),
+            self.tophavePointsLabel.leadingAnchor.constraint(equalTo: self.topPointLabel.trailingAnchor),
             self.tophavePointsLabel.centerYAnchor.constraint(equalTo: self.topPointLabel.centerYAnchor),
+            self.tophavePointsLabel.heightAnchor.constraint(equalToConstant: 50.0),
+            self.tophavePointsLabel.widthAnchor.constraint(equalToConstant: 70.0),
 
             self.bottomPointLabel.topAnchor.constraint(equalTo: self.centerView.bottomAnchor, constant: 40.0),
-            self.bottomPointLabel.widthAnchor.constraint(equalToConstant: 50.0),
-            self.bottomPointLabel.heightAnchor.constraint(equalToConstant: 50.0),
+            self.bottomPointLabel.widthAnchor.constraint(equalToConstant: 80.0),
+            self.bottomPointLabel.heightAnchor.constraint(equalToConstant: 70.0),
             self.bottomPointLabel.centerXAnchor.constraint(equalTo: self.topPointLabel.centerXAnchor),
             self.bottomHavePointLabel.leadingAnchor.constraint(equalTo: self.bottomPointLabel.trailingAnchor, constant: 0),
-            self.bottomHavePointLabel.centerYAnchor.constraint(equalTo: self.bottomPointLabel.centerYAnchor)
+            self.bottomHavePointLabel.centerYAnchor.constraint(equalTo: self.bottomPointLabel.centerYAnchor),
+            self.bottomHavePointLabel.heightAnchor.constraint(equalToConstant: 50.0),
+            self.bottomHavePointLabel.widthAnchor.constraint(equalToConstant: 70.0)
         ])
     }
     
-    func caculatePoints() -> CGPoint {
+    func caculateMidPoint() -> CGPoint {
         let summPointX = pow(1-0.5, 2.0) * self.leftEdgeView.center.x + 2 * (1-0.5) * 0.5 * self.centerView.center.x + pow(0.5, 2) * self.rightEdgeView.center.x
         let summPointY = pow(1-0.5, 2.0) * self.leftEdgeView.center.y + 2 * (1-0.5) * 0.5 * self.centerView.center.y + pow(0.5, 2) * self.rightEdgeView.center.y
         return .init(x: summPointX, y: summPointY)
@@ -368,7 +392,7 @@ extension ViewController {
     func makeCanvasView() -> UIView {
         let temp = UIView()
         temp.translatesAutoresizingMaskIntoConstraints = false
-        temp.backgroundColor = UIColor.red
+        temp.backgroundColor = UIColor.clear
         temp.clipsToBounds = true
         temp.layer.masksToBounds = true
         return temp
@@ -377,14 +401,15 @@ extension ViewController {
     func makeLabel(typeLabel: PointLabel) -> UILabel {
         let temp = UILabel()
         var tempColor = UIColor.white
-        var tempTitle = "POINTS\nYOU NEED"
+        var tempTitle = " POINTS\nYOU NEED"
+        temp.textAlignment = .center
         temp.translatesAutoresizingMaskIntoConstraints = false
         
         switch typeLabel {
         case .topNeedPoint, .topPoint:
             tempColor = .blue.withAlphaComponent(0.7)
         case .bottomPoint, .bottomHavePoint:
-            tempTitle = "POINTS\nYOU HAVE"
+            tempTitle = " POINTS\nYOU HAVE"
         }
         temp.text = tempTitle
         temp.textColor = .black
@@ -399,7 +424,7 @@ extension ViewController {
         let shape = CAShapeLayer()
         shape.backgroundColor = UIColor.clear.cgColor
         shape.lineWidth = 2.0
-        shape.fillColor = UIColor.red.cgColor
+        shape.fillColor = UIColor(red: 57/255, green: 74/255, blue: 124/255, alpha: 1.0).cgColor
         shape.strokeColor = UIColor.clear.cgColor
         shape.lineCap = .round
         shape.lineJoin = .round
@@ -424,7 +449,7 @@ extension ViewController {
     
     func makeCurvePointView() -> UIView {
         let temp = UIView()
-        temp.backgroundColor = .black
+        temp.backgroundColor = .clear
         temp.translatesAutoresizingMaskIntoConstraints = false
         temp.frame.size = .init(width: 10.0, height: 10.0)
         temp.layer.actions = ["path":NSNull(),"position":NSNull(), "bounds":NSNull()]
