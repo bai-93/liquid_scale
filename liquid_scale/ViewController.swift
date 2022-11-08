@@ -35,10 +35,10 @@ class ViewController: UIViewController {
     lazy var more: UIButton = self.makeNavBarButton(type: .more)
     lazy var stats: UIButton = self.makeNavBarButton(type: .stats)
     
-    lazy var topPoint: UILabel = self.makeLabel(typeLabel: .topPoint)
-    lazy var tophavePoints: UILabel = self.makeLabel(typeLabel: .topNeedPoint)
-    lazy var bottomPoint: UILabel = self.makeLabel(typeLabel: .bottomPoint)
-    lazy var bottomHavePoint: UILabel = self.makeLabel(typeLabel: .bottomHavePoint)
+    lazy var topPointLabel: UILabel = self.makeLabel(typeLabel: .topPoint)
+    lazy var tophavePointsLabel: UILabel = self.makeLabel(typeLabel: .topNeedPoint)
+    lazy var bottomPointLabel: UILabel = self.makeLabel(typeLabel: .bottomPoint)
+    lazy var bottomHavePointLabel: UILabel = self.makeLabel(typeLabel: .bottomHavePoint)
     
     lazy var beginOfScale: UIView = self.makeCanvasView()
     lazy var endOfScale: UIView = self.makeCanvasView()
@@ -55,6 +55,8 @@ class ViewController: UIViewController {
     private var percent: CGFloat = .zero
     private var flag: Bool = true
     lazy var checkCurveView: UIView = self.makeCurvePointView()
+    private var topPercent: Int = 50
+    private var bottomPercent: Int = 50
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,7 +65,7 @@ class ViewController: UIViewController {
         self.settingsOfScale()
         
         self.checkCurveView.backgroundColor = UIColor.green
-        self.checkCurveView.frame.size = .init(width: 10.0, height: 10.0)
+        self.checkCurveView.frame.size = .init(width: 1.0, height: 1.0)
         
         let panGesure = UIPanGestureRecognizer(target: self, action: #selector(self.canvasGesture(sender:)))
         self.canvasView.addGestureRecognizer(panGesure)
@@ -76,11 +78,26 @@ class ViewController: UIViewController {
         self.displayRefresh.isPaused = true
     }
     
-    func changePositionOfLabels() {
-        self.topPoint.center.y = self.centerView.frame.origin.y - 10.0
-        self.tophavePoints.center.y = self.topPoint.center.y
-        self.bottomPoint.frame.origin.y = self.centerView.getAbsolutePosition().y + 10.0
-        self.bottomHavePoint.frame.origin.y = self.bottomPoint.frame.origin.y
+    func changePositionOfLabels(translation: CGPoint) {
+        let percentOfWay: Int = Int((self.checkCurveView.center.y / self.canvasView.bounds.height) * 100)
+        if (translation.y > 0.0) {
+            self.topPercent = percentOfWay == 100  ? 100 : abs(percentOfWay)
+            self.bottomPercent = percentOfWay == 100 ? 100 : abs(100-percentOfWay)
+        } else if (translation.y < 0.0) {
+            self.topPercent = abs(percentOfWay)
+            self.bottomPercent = percentOfWay == 100 ? 100 : abs(100-percentOfWay)
+        }
+        
+        self.topPointLabel.center.y = self.checkCurveView.frame.origin.y - 55.0
+        self.tophavePointsLabel.center.y = self.topPointLabel.center.y
+        self.bottomPointLabel.frame.origin.y = self.checkCurveView.getAbsolutePosition().y + 45.0
+        self.bottomHavePointLabel.center.y = self.bottomPointLabel.center.y
+        
+        UIView.animate(withDuration: 0.3) { [weak self] in
+            guard let self = self else { return }
+            self.topPointLabel.text = String(self.topPercent)
+            self.bottomPointLabel.text = String(self.bottomPercent)
+        }
     }
     
    @objc func refreshDraw() {
@@ -90,31 +107,24 @@ class ViewController: UIViewController {
     @objc func canvasGesture(sender: UIPanGestureRecognizer) {
         let translation: CGPoint = sender.translation(in: self.canvasView)
         let locationPoint: CGPoint = sender.location(in: self.canvasView)
-        if (locationPoint.y >= self.topNavbar.frame.height) && (locationPoint.y <= self.bottomNavBar.frame.minY - self.bottomNavBar.bounds.height) {
-            let axisX = translation.x
-            let allowableArea = self.centerView.frame
-            if (translation.y <= 0) {
-                if (allowableArea.origin.y - abs(translation.y) > 0.0) {
-                    self.centerView.frame.origin.y -= abs(translation.y)
-                }
+        if (translation.y > 0.0) {
+            let percentOfWay = self.checkCurveView.center.y / self.canvasView.bounds.height
+            if (Int(percentOfWay * 100.0) != 100) {
+                self.centerView.frame.origin.y += abs(translation.y)
             } else {
-                if (allowableArea.origin.y + translation.y < self.canvasView.bounds.height - allowableArea.height) {
-                    self.centerView.frame.origin.y += abs(translation.y)
-                }
+                self.checkCurveView.center.y = self.canvasView.bounds.maxY
             }
-            if (axisX > 0) {
-                if (allowableArea.origin.x + translation.x < self.canvasView.bounds.width - allowableArea.width) {
-                    self.centerView.frame.origin.x += translation.x
-                }
+        } else {
+            let percentOfWay = self.checkCurveView.center.y / self.canvasView.bounds.height
+            if (Int(percentOfWay * 100.0) != 0) {
+                self.centerView.frame.origin.y -= abs(translation.y)
             } else {
-                if (allowableArea.origin.x - abs(translation.x) > 0.0) {
-                    self.centerView.frame.origin.x -= abs(translation.x)
-                }
+                self.checkCurveView.center.y = self.canvasView.bounds.minY
             }
-            self.percent = self.centerView.getAbsolutePosition().y / (self.canvasView.bounds.height - 10.0)
         }
         self.centerView.center.x = locationPoint.x
         self.checkCurveView.center = self.caculatePoints()
+        changePositionOfLabels(translation: translation)
         self.redrawBezier()
         sender.setTranslation(.zero, in: self.canvasView)
         
@@ -122,8 +132,19 @@ class ViewController: UIViewController {
             self.canvasView.isUserInteractionEnabled = false
             self.displayRefresh.isPaused = false
             
-            UIView.animate(withDuration: 0.7, delay: 0.0, usingSpringWithDamping: 0.25, initialSpringVelocity: 0.8) { [weak self] in
+            UIView.animate(withDuration: 0.08) {
+                self.topPointLabel.center.y = self.checkCurveView.frame.origin.y - 15.0
+                self.tophavePointsLabel.center.y = self.topPointLabel.center.y
+                self.bottomPointLabel.frame.origin.y = self.checkCurveView.getAbsolutePosition().y + 5.0
+                self.bottomHavePointLabel.center.y = self.bottomPointLabel.center.y
+            }
+
+            UIView.animate(withDuration: 1.0, delay: 0.0, usingSpringWithDamping: 0.27, initialSpringVelocity: 0) { [weak self] in
                 guard let self = self else { return }
+                self.topPointLabel.center.y = self.checkCurveView.frame.origin.y - 55.0
+                self.tophavePointsLabel.center.y = self.topPointLabel.center.y
+                self.bottomPointLabel.frame.origin.y = self.checkCurveView.getAbsolutePosition().y + 45.0
+                self.bottomHavePointLabel.center.y = self.bottomPointLabel.center.y
                 self.leftEdgeView.center.y = self.checkCurveView.center.y
                 self.rightEdgeView.center.y = self.checkCurveView.center.y
                 self.centerView.center = self.checkCurveView.center
@@ -179,9 +200,9 @@ class ViewController: UIViewController {
     func setupControlPoint() {
         let sizeOfParentView = self.canvasView.bounds
         
-        self.leftEdgeView.center = .init(x: 0.0, y: sizeOfParentView.midY)
+        self.leftEdgeView.center = .init(x: -10.0, y: sizeOfParentView.midY)
         self.centerView.center = .init(x: 0.0, y: sizeOfParentView.midY)
-        self.rightEdgeView.center = .init(x: sizeOfParentView.maxX, y: sizeOfParentView.midY)
+        self.rightEdgeView.center = .init(x: sizeOfParentView.maxX + 10.0, y: sizeOfParentView.midY)
         
         let bezier = UIBezierPath()
         bezier.move(to: self.leftEdgeView.center)
@@ -229,15 +250,15 @@ extension ViewController {
         self.canvasView.addSubview(self.beginOfScale)
         self.canvasView.addSubview(self.endOfScale)
         
-        self.canvasView.addSubview(self.topPoint)
-        self.canvasView.addSubview(self.tophavePoints)
-        
-        self.canvasView.addSubview(self.bottomPoint)
-        self.canvasView.addSubview(self.bottomHavePoint)
-        self.topPoint.text = "50 %"
-        self.bottomPoint.text = "40 %"
-        
         self.canvasView.addSubview(self.checkCurveView)
+        
+        self.canvasView.addSubview(self.topPointLabel)
+        self.canvasView.addSubview(self.tophavePointsLabel)
+        
+        self.canvasView.addSubview(self.bottomPointLabel)
+        self.canvasView.addSubview(self.bottomHavePointLabel)
+        self.topPointLabel.text = "50 %"
+        self.bottomPointLabel.text = "40 %"
     }
     
     func configureConstraints() {
@@ -288,15 +309,19 @@ extension ViewController {
             self.centerView.widthAnchor.constraint(equalToConstant: 10.0),
             self.centerView.heightAnchor.constraint(equalToConstant: 10.0),
             
-            self.topPoint.bottomAnchor.constraint(equalTo: self.centerView.topAnchor, constant: -10.0),
-            self.topPoint.leadingAnchor.constraint(equalTo: self.canvasView.leadingAnchor, constant: 25.0),
-            self.tophavePoints.leadingAnchor.constraint(equalTo: self.topPoint.trailingAnchor, constant: 10.0),
-            self.tophavePoints.centerYAnchor.constraint(equalTo: self.topPoint.centerYAnchor),
-            
-            self.bottomPoint.leadingAnchor.constraint(equalTo: self.canvasView.leadingAnchor, constant: 25.0),
-            self.bottomPoint.topAnchor.constraint(equalTo: self.centerView.bottomAnchor, constant: 10.0),
-            self.bottomHavePoint.leadingAnchor.constraint(equalTo: self.bottomPoint.trailingAnchor, constant: 10.0),
-            self.bottomHavePoint.centerYAnchor.constraint(equalTo: self.bottomPoint.centerYAnchor)
+            self.topPointLabel.bottomAnchor.constraint(equalTo: self.centerView.topAnchor, constant: -40.0),
+            self.topPointLabel.centerXAnchor.constraint(equalTo: self.centerView.centerXAnchor, constant: -50.0),
+            self.topPointLabel.widthAnchor.constraint(equalToConstant: 50.0),
+            self.topPointLabel.heightAnchor.constraint(equalToConstant: 50.0),
+            self.tophavePointsLabel.leadingAnchor.constraint(equalTo: self.topPointLabel.trailingAnchor,constant: 0),
+            self.tophavePointsLabel.centerYAnchor.constraint(equalTo: self.topPointLabel.centerYAnchor),
+
+            self.bottomPointLabel.topAnchor.constraint(equalTo: self.centerView.bottomAnchor, constant: 40.0),
+            self.bottomPointLabel.widthAnchor.constraint(equalToConstant: 50.0),
+            self.bottomPointLabel.heightAnchor.constraint(equalToConstant: 50.0),
+            self.bottomPointLabel.centerXAnchor.constraint(equalTo: self.topPointLabel.centerXAnchor),
+            self.bottomHavePointLabel.leadingAnchor.constraint(equalTo: self.bottomPointLabel.trailingAnchor, constant: 0),
+            self.bottomHavePointLabel.centerYAnchor.constraint(equalTo: self.bottomPointLabel.centerYAnchor)
         ])
     }
     
@@ -352,17 +377,21 @@ extension ViewController {
     func makeLabel(typeLabel: PointLabel) -> UILabel {
         let temp = UILabel()
         var tempColor = UIColor.white
-        var tempTitle = "POINTS YOU NEED"
+        var tempTitle = "POINTS\nYOU NEED"
         temp.translatesAutoresizingMaskIntoConstraints = false
         
         switch typeLabel {
         case .topNeedPoint, .topPoint:
             tempColor = .blue.withAlphaComponent(0.7)
         case .bottomPoint, .bottomHavePoint:
-            tempTitle = "POINTS YOU HAVE"
+            tempTitle = "POINTS\nYOU HAVE"
         }
         temp.text = tempTitle
-        temp.textColor = tempColor
+        temp.textColor = .black
+        temp.numberOfLines = 0
+        temp.adjustsFontForContentSizeCategory = true
+        temp.adjustsFontSizeToFitWidth = true
+        temp.sizeToFit()
         return temp
     }
     
