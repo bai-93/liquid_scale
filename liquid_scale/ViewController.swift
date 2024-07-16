@@ -30,7 +30,7 @@ class ViewController: UIViewController {
     lazy var topNavbar: UIView = self.makeNavBar()
     lazy var bottomNavBar: UIView = self.makeNavBar(typeNavBar: .bottom)
     
-    lazy var menuButton: UIButton = self.makeNavBarButton()
+    lazy var menuButton = self.makeNavBarButton()
     lazy var settings: UIButton = self.makeNavBarButton(type: .settings)
     lazy var more: UIButton = self.makeNavBarButton(type: .more)
     lazy var stats: UIButton = self.makeNavBarButton(type: .stats)
@@ -433,16 +433,13 @@ extension ViewController {
     }
     
     func makeScaleViews() -> [UIView] {
-        var item: Int = 0
-        var tempViews: [UIView] = []
-        while 12 != item {
-            let temp = UIView()
+        let anyIterator = AnyIterator(UIView.init)
+        let tempViews = Array(anyIterator.prefix(12))
+        tempViews.forEach { temp in
             temp.frame.size = CGSize(width: 50.0, height: 3.0)
             temp.translatesAutoresizingMaskIntoConstraints = false
             temp.backgroundColor = UIColor.cyan
             temp.layer.cornerRadius = 2.0
-            tempViews.append(temp)
-            item += 1
         }
         return tempViews
     }
